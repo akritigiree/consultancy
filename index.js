@@ -1,3 +1,4 @@
+// index.js
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config();
@@ -24,10 +25,14 @@ mongoose.connect(process.env.MONGO_URI, {
 // ==========================
 // Routes
 // ==========================
-app.use('/api/auth', require('./routes/auth'));        // auth routes
+app.use('/api/auth', require('./routes/auth'));          // Auth routes
 app.use('/api/consultants', require('./routes/consultants'));
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api/clients', require('./routes/clients'));
+app.use('/api/tasks', require('./routes/task'));
+app.use('/api/appointments', require('./routes/appointment'));
+app.use('/api/ratings', require('./routes/ratings'));
+app.use('/api/payments', require('./routes/payment'));
 
 // ==========================
 // Test Route

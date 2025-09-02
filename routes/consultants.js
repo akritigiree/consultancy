@@ -1,106 +1,61 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
+const { body, validationResult } = require('express-validator');
 const Consultant = require('../models/consultant');
 const { authMiddleware, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
-// ✅ Admin: Create consultant
+// Create Consultant (Admin only)
 router.post(
   '/',
   authMiddleware,
   authorizeRoles('admin'),
+  body('name').notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 chars'),
   async (req, res) => {
-    try {
-      const consultant = new Consultant(req.body);
-      await consultant.save();
-      res.json({ msg: 'Consultant created successfully', consultant });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { name, email, password, skills, certifications } = req.body;
+    const existing = await Consultant.findOne({ email });
+    if (existing) return res.status(400).json({ error: 'Email already exists' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const consultant = new Consultant({ name, email, password: hashedPassword, skills, certifications });
+    await consultant.save();
+
+    const { password: pwd, ...consultantData } = consultant._doc;
+    res.json({ msg: 'Consultant created successfully', consultant: consultantData });
   }
 );
 
-// ✅ Admin: Get all consultants
-router.get(
-  '/',
-  authMiddleware,
-  authorizeRoles('admin'),
-  async (req, res) => {
-    try {
-      const consultants = await Consultant.find();
-      res.json(consultants);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  }
-);
+// Get All Consultants (Admin)
+router.get('/', authMiddleware, authorizeRoles('admin'), async (req, res) => {
+  const consultants = await Consultant.find().select('-password');
+  res.json(consultants);
+});
 
-// ✅ Admin: Get single consultant by ID
-router.get(
-  '/:id',
-  authMiddleware,
-  authorizeRoles('admin'),
-  async (req, res) => {
-    try {
-      const consultant = await Consultant.findById(req.params.id);
-      if (!consultant) return res.status(404).json({ msg: 'Consultant not found' });
-      res.json(consultant);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  }
-);
+// Get Single Consultant
+router.get('/:id', authMiddleware, authorizeRoles('admin'), async (req, res) => {
+  const consultant = await Consultant.findById(req.params.id).select('-password');
+  if (!consultant) return res.status(404).json({ error: 'Consultant not found' });
+  res.json(consultant);
+});
 
-// ✅ Admin: Update consultant
-router.put(
-  '/:id',
-  authMiddleware,
-  authorizeRoles('admin'),
-  async (req, res) => {
-    try {
-      const consultant = await Consultant.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        { new: true }
-      );
-      res.json({ msg: 'Consultant updated', consultant });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  }
-);
+// Update Consultant
+router.put('/:id', authMiddleware, authorizeRoles('admin'), async (req, res) => {
+  const updatedConsultant = await Consultant.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
+  if (!updatedConsultant) return res.status(404).json({ error: 'Consultant not found' });
+  res.json({ msg: 'Consultant updated successfully', consultant: updatedConsultant });
+});
 
-// ✅ Admin: Delete consultant
-router.delete(
-  '/:id',
-  authMiddleware,
-  authorizeRoles('admin'),
-  async (req, res) => {
-    try {
-      await Consultant.findByIdAndDelete(req.params.id);
-      res.json({ msg: 'Consultant deleted' });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  }
-);
-
-// ✅ Consultant: Get own profile
-router.get(
-  '/me/profile',
-  authMiddleware,
-  authorizeRoles('consultant'),
-  async (req, res) => {
-    try {
-      const consultant = await Consultant.findById(req.user.id); // ✅ fetch by user ID
-      if (!consultant) return res.status(404).json({ error: 'Consultant not found' });
-      res.json({ msg: 'Profile fetched successfully', consultant });
-    } catch (err) {
-      res.status(500).json({ error: 'Server error' });
-    }
-  }
-);
+// Delete Consultant
+router.delete('/:id', authMiddleware, authorizeRoles('admin'), async (req, res) => {
+  const deleted = await Consultant.findByIdAndDelete(req.params.id);
+  if (!deleted) return res.status(404).json({ error: 'Consultant not found' });
+  res.json({ msg: 'Consultant deleted successfully' });
+});
 
 module.exports = router;
-
-

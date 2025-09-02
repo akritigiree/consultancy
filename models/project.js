@@ -8,7 +8,7 @@ const projectSchema = new mongoose.Schema(
     client: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     status: {
       type: String,
-      enum: ["pending", "in-progress", "completed"], // ❗ only these allowed
+      enum: ["pending", "in-progress", "completed"],
       default: "pending"
     },
   },

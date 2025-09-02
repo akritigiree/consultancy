@@ -1,64 +1,69 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const User = require('../models/user');
+const { body, validationResult } = require('express-validator');
+const User = require('../models/User');
 require('dotenv').config();
 
 const router = express.Router();
 
+// ----------------------
 // Register User
-router.post('/register', async (req, res) => {
-  try {
+// ----------------------
+router.post('/register',
+  body('name').notEmpty(),
+  body('email').isEmail(),
+  body('password').isLength({ min: 6 }),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
     const { name, email, password, role } = req.body;
 
-    // Check if email already exists
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ error: 'User already exists' });
+    try {
+      let user = await User.findOne({ email });
+      if(user) return res.status(400).json({ error: 'User already exists' });
 
-    // Create new user
-    user = new User({ name, email, password, role });
-    await user.save();
+      user = new User({ name, email, password, role });
+      await user.save();
 
-    res.json({ msg: 'User registered successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+      res.json({ msg: 'User registered', token, user: { id: user._id, name, email, role } });
+    } catch(err) {
+      console.error(err);
+      res.status(500).json({ error: 'Server error' });
+    }
   }
-});
+);
 
+// ----------------------
 // Login User
-router.post('/login', async (req, res) => {
-  try {
+// ----------------------
+router.post('/login',
+  body('email').isEmail(),
+  body('password').notEmpty(),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
     const { email, password } = req.body;
 
-    // Check if user exists
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
+    try {
+      const user = await User.findOne({ email });
+      if(!user) return res.status(400).json({ error: 'Invalid credentials' });
 
-    // Compare password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
+      const isMatch = await user.matchPassword(password);
+      if(!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-    // Create JWT token
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+      const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      res.json({ msg: 'Logged in', token, user: { id: user._id, name: user.name, email, role: user.role } });
+    } catch(err) {
+      console.error(err);
+      res.status(500).json({ error: 'Server error' });
+    }
   }
-});
+);
 
 module.exports = router;
-
-
 
