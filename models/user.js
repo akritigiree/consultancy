@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['admin','consultant','client'], default: 'client' },
+  role: { type: String, enum: ['admin', 'consultant', 'client'], default: 'client' }
 }, { timestamps: true });
 
 // Pre-save hook to hash password
@@ -16,7 +16,7 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-// Compare password method
+// Method to compare passwords
 userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
