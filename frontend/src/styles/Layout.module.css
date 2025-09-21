@@ -1,0 +1,206 @@
+/* ============================================
+   Layout.css - Layout System & Main Structure
+   ============================================ */
+
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main Grid Layout */
+.app-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr; /* Sidebar width + remaining space */
+  grid-template-rows: auto 1fr; /* Header height + remaining space */
+  grid-template-areas: 
+    "sidebar header"
+    "sidebar content";
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--color-bg, #f8f9fa);
+  transition: grid-template-columns 0.3s ease;
+}
+
+/* Collapsed State */
+.app-shell--collapsed {
+  grid-template-columns: 80px 1fr; /* Collapsed sidebar width + remaining space */
+}
+
+/* Grid Areas */
+.app-shell__sidebar {
+  grid-area: sidebar;
+  position: fixed; /* Keep sidebar fixed during scroll */
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  z-index: 1000;
+  overflow: hidden;
+  transition: width 0.3s ease;
+}
+
+.app-shell--collapsed .app-shell__sidebar {
+  width: 80px;
+}
+
+.app-shell__header {
+  grid-area: header;
+  margin: 0;
+  padding: 0;
+  z-index: 999;
+  position: sticky;
+  top: 0;
+}
+
+.app-shell__content {
+  grid-area: content;
+  padding: 0; /* Remove padding to eliminate white space */
+  width: 100%;
+  margin: 0; /* Remove any margins */
+  /* Remove overflow-y: auto from here since the whole page should scroll */
+}
+
+/* Main Content */
+.main-content {
+  padding: 1.5rem;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+/* ============================================
+   GRID SYSTEMS
+   ============================================ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.content-grid__item--12 { grid-column: span 12; }
+.content-grid__item--9 { grid-column: span 9; }
+.content-grid__item--8 { grid-column: span 8; }
+.content-grid__item--6 { grid-column: span 6; }
+.content-grid__item--4 { grid-column: span 4; }
+.content-grid__item--3 { grid-column: span 3; }
+
+/* Dashboard Grid */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+}
+
+.dash-col-12 { grid-column: span 12; }
+.dash-col-9 { grid-column: span 9; }
+.dash-col-8 { grid-column: span 8; }
+.dash-col-6 { grid-column: span 6; }
+.dash-col-4 { grid-column: span 4; }
+.dash-col-3 { grid-column: span 3; }
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+@media (max-width: 1200px) {
+  .content-grid__item--8 { grid-column: span 12; }
+  .content-grid__item--4 { grid-column: span 12; }
+  .dash-col-8 { grid-column: span 12; }
+  .dash-col-4 { grid-column: span 12; }
+}
+
+@media (max-width: 1024px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .content-grid__item--12,
+  .content-grid__item--9,
+  .content-grid__item--8,
+  .content-grid__item--6,
+  .content-grid__item--4,
+  .content-grid__item--3 {
+    grid-column: span 1;
+  }
+  
+  .dash-col-12,
+  .dash-col-9,
+  .dash-col-8,
+  .dash-col-6,
+  .dash-col-4,
+  .dash-col-3 {
+    grid-column: span 12;
+  }
+}
+
+/* Tablet layout */
+@media (max-width: 768px) {
+  .app-shell {
+    grid-template-columns: 80px 1fr; /* Force collapsed sidebar on tablet */
+  }
+  
+  .app-shell--collapsed {
+    grid-template-columns: 80px 1fr;
+  }
+  
+  .app-shell__sidebar {
+    width: 80px;
+  }
+  
+  .main-content {
+    padding: 1rem;
+  }
+}
+
+/* Mobile layout */
+@media (max-width: 480px) {
+  .app-shell {
+    grid-template-columns: 1fr; /* Single column on mobile */
+    grid-template-rows: auto auto 1fr; /* Header, sidebar, content */
+    grid-template-areas: 
+      "header"
+      "sidebar" 
+      "content";
+  }
+  
+  .app-shell--collapsed {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr; /* Header, content (hide sidebar) */
+    grid-template-areas: 
+      "header"
+      "content";
+  }
+  
+  .app-shell__sidebar {
+    position: relative; /* Remove fixed positioning on mobile */
+    width: 100% !important;
+    height: auto; /* Allow sidebar to size naturally on mobile */
+    max-height: 200px; /* Prevent sidebar from taking too much space */
+    overflow-y: auto;
+  }
+  
+  .main-content {
+    padding: 0.75rem;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  .main-content {
+    padding: 0.5rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
