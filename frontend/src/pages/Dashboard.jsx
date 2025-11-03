@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; 
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthContext.jsx';
 import styles from '@/styles/Dashboard.module.css';
-
 
 // Icon Component (matching your Icon.jsx structure)
 const Icon = ({ name, size = 20, className = '' }) => {
@@ -32,14 +31,14 @@ const Icon = ({ name, size = 20, className = '' }) => {
   };
 
   return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
     >
@@ -49,11 +48,10 @@ const Icon = ({ name, size = 20, className = '' }) => {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();  
-   const navigate = useNavigate(); 
-const [currentView, setCurrentView] = useState(
-  user?.role === 'student' ? 'student' : 'consultant'
-);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const [currentView, setCurrentView] = useState(user?.role === 'student' ? 'student' : 'consultant');
   const [activeTab, setActiveTab] = useState('university');
   const [activities, setActivities] = useState([
     { id: 1, type: 'success', icon: 'check', message: "Sarah Johnson's I-20 document was verified", time: '2 minutes ago' },
@@ -61,7 +59,6 @@ const [currentView, setCurrentView] = useState(
     { id: 3, type: 'info', icon: 'users', message: 'New student David Kumar was assigned to you', time: '1 hour ago' },
   ]);
 
-  // Quick Actions based on Sidebar.jsx navigation
   const quickActions = [
     { path: '/students', label: 'Students', icon: 'users', color: 'primary' },
     { path: '/applications', label: 'Applications', icon: 'clipboard-document-list', color: 'secondary' },
@@ -71,7 +68,6 @@ const [currentView, setCurrentView] = useState(
     { path: '/messages', label: 'Messages', icon: 'messages', color: 'danger' },
   ];
 
-  // Data from ApplicationPipeline.jsx
   const pipelineStages = [
     { id: 'initial', name: 'Initial', count: 8, color: '#64748b' },
     { id: 'documents', name: 'Documents', count: 12, color: '#f59e0b' },
@@ -80,20 +76,17 @@ const [currentView, setCurrentView] = useState(
     { id: 'decision', name: 'Decision', count: 4, color: '#10b981' },
   ];
 
-  // Data from ConsultantSchedule.jsx
   const todayAppointments = [
     { id: 1, title: 'Sarah Johnson - Initial Consultation', time: '10:00 AM', priority: 'high' },
     { id: 2, title: 'Michael Chen - Document Review', time: '2:00 PM', priority: 'medium' },
     { id: 3, title: 'Emma Wilson - Follow-up', time: '4:00 PM', priority: 'low' },
   ];
 
-  // Data from UniversityApps.jsx
   const urgentDeadlines = [
     { id: 1, title: 'Harvard - Computer Science', deadline: 'Feb 15 (7 days)', priority: 'high' },
     { id: 2, title: 'MIT - Electrical Engineering', deadline: 'Mar 1 (14 days)', priority: 'medium' },
   ];
 
-  // Data from Consultants.jsx performanceMetrics
   const performanceMetrics = {
     successRate: 94,
     activeStudents: 18,
@@ -102,9 +95,8 @@ const [currentView, setCurrentView] = useState(
     monthlyTarget: 12,
   };
 
-  // Student Data from StudentApplication.jsx
   const journeyStages = ['Consultation', 'Document Collection', 'Application Submission', 'Visa Process', 'Pre-Departure'];
-  const currentStage = 2; // Application Submission
+  const currentStage = 2;
 
   const documents = [
     { name: 'Official Transcripts', status: 'verified', note: 'Verified - Received from university' },
@@ -132,7 +124,6 @@ const [currentView, setCurrentView] = useState(
     { day: '15', month: 'MAR', title: 'Financial Documents Submission', type: 'Document Deadline', urgent: false }
   ];
 
-  // Add new activity periodically
   useEffect(() => {
     const interval = setInterval(() => {
       const newActivities = [
@@ -141,26 +132,22 @@ const [currentView, setCurrentView] = useState(
         { type: 'info', icon: 'users', message: 'New message received' },
       ];
       const randomActivity = newActivities[Math.floor(Math.random() * newActivities.length)];
-      setActivities(prev => [
-        { ...randomActivity, id: Date.now(), time: 'Just now' },
-        ...prev.slice(0, 4)
-      ]);
+      setActivities(prev => [{ ...randomActivity, id: Date.now(), time: 'Just now' }, ...prev.slice(0, 4)]);
     }, 15000);
     return () => clearInterval(interval);
   }, []);
-useEffect(() => {
-  if (user?.role === 'student') {
-    setCurrentView('student');
-  } else if (user?.role === 'consultant') {
-    setCurrentView('consultant');
-  }
-}, [user?.role]);
+
+  useEffect(() => {
+    if (user?.role === 'student') setCurrentView('student');
+    else if (user?.role === 'consultant') setCurrentView('consultant');
+  }, [user?.role]);
+
   return (
     <div className={styles.dashboardContainer}>
       {/* Animated Background */}
       <div className={styles.animatedBg}>
-        <div className={`${styles.orb} ${styles.orb1}`}></div>
-        <div className={`${styles.orb} ${styles.orb2}`}></div>
+        <div className={`${styles.orb} ${styles.orb1}`} />
+        <div className={`${styles.orb} ${styles.orb2}`} />
       </div>
 
       <div className={styles.dashboardWrapper}>
@@ -169,26 +156,40 @@ useEffect(() => {
           <div className={styles.headerContent}>
             <div>
               <h1 className={styles.headerTitle}>Educational Consultancy Portal</h1>
-             <p className={styles.headerSubtitle}>
-  Welcome back, {user?.fullName || user?.username} ({user?.role})
-</p>
+              <p className={styles.headerSubtitle}>
+                Welcome back, {user?.fullName || user?.username} ({user?.role})
+              </p>
             </div>
-           {user?.role === 'admin' && (
-  <div className={styles.viewSwitcher}>
-    <button 
-      className={`${styles.viewBtn} ${currentView === 'consultant' ? styles.active : ''}`}
-      onClick={() => setCurrentView('consultant')}
-    >
-      Consultant View
-    </button>
-    <button 
-      className={`${styles.viewBtn} ${currentView === 'student' ? styles.active : ''}`}
-      onClick={() => setCurrentView('student')}
-    >
-      Student View
-    </button>
-  </div>
-)}
+
+            {/* RIGHT SIDE: view switch for admin + Book Appointment button for student/consultant */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {user?.role === 'admin' && (
+                <div className={styles.viewSwitcher}>
+                  <button
+                    className={`${styles.viewBtn} ${currentView === 'consultant' ? styles.active : ''}`}
+                    onClick={() => setCurrentView('consultant')}
+                  >
+                    Consultant View
+                  </button>
+                  <button
+                    className={`${styles.viewBtn} ${currentView === 'student' ? styles.active : ''}`}
+                    onClick={() => setCurrentView('student')}
+                  >
+                    Student View
+                  </button>
+                </div>
+              )}
+
+              {(user?.role === 'student' || user?.role === 'consultant') && (
+                <button
+                  onClick={() => navigate('/appointments/new')}
+                  className={styles.viewBtn} // reuse existing style; looks consistent
+                  title="Book a new appointment"
+                >
+                  <Icon name="calendar" size={16} />&nbsp; Book Appointment
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -198,7 +199,7 @@ useEffect(() => {
             <button
               key={action.path}
               className={`${styles.quickActionBtn} ${styles[action.color]}`}
-          onClick={() => navigate(action.path)}
+              onClick={() => navigate(action.path)}
             >
               <Icon name={action.icon} size={18} />
               {action.label}
@@ -235,7 +236,7 @@ useEffect(() => {
                     </div>
                   ))}
                 </div>
-                
+
                 <div className={styles.agendaSection}>
                   <h4>
                     <Icon name="alert" size={16} />
@@ -352,13 +353,12 @@ useEffect(() => {
               </div>
               <div className={styles.journeyTimeline}>
                 <div className={styles.journeyProgress}></div>
-                {journeyStages.map((stage, index) => (
+                {['Consultation','Document Collection','Application Submission','Visa Process','Pre-Departure'].map((stage, index) => (
                   <div key={index} className={styles.journeyStep}>
                     <div className={`${styles.journeyStepIcon} ${
-                      index < currentStage ? styles.completed : 
-                      index === currentStage ? styles.current : ''
+                      index < 2 ? styles.completed : index === 2 ? styles.current : ''
                     }`}>
-                      <Icon name={index < currentStage ? 'check' : index === currentStage ? 'activity' : 'clock'} size={24} />
+                      <Icon name={index < 2 ? 'check' : index === 2 ? 'activity' : 'clock'} size={24} />
                     </div>
                     <div className={styles.journeyStepLabel}>{stage}</div>
                   </div>
@@ -461,9 +461,7 @@ useEffect(() => {
               </div>
               <div className={styles.deadlineList}>
                 {deadlines.map((deadline, index) => (
-                  <div key={index} className={`${styles.deadlineItem} ${
-                    deadline.urgent ? styles.urgent : styles.soon
-                  }`}>
+                  <div key={index} className={`${styles.deadlineItem} ${deadline.urgent ? styles.urgent : styles.soon}`}>
                     <div className={styles.deadlineDate}>
                       <div className={styles.deadlineDay}>{deadline.day}</div>
                       <div className={styles.deadlineMonth}>{deadline.month}</div>
@@ -476,6 +474,7 @@ useEffect(() => {
                 ))}
               </div>
             </div>
+
           </div>
         )}
       </div>
