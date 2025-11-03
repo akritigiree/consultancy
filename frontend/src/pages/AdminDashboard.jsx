@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '@/components/Icon.jsx';
 import { useAuth } from '@/components/AuthContext.jsx';
@@ -11,6 +11,58 @@ const formatTime = (dateStr) => {
   const date = new Date(dateStr);
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 };
+
+// ----- MOCKS / FALLBACKS -----
+const fallbackStudents = [
+  {
+    id: 'STU-1001',
+    name: 'Ramesh Sharma',
+    email: 'ramesh@example.com',
+    phone: '+977 9812345678',
+    destination: 'Canada',
+    stage: 'Documents Collection',
+    status: 'active',
+    assignedTo: 'Dr. Nishan Timilsina',
+    createdAt: '2025-01-02T10:00:00',
+    lastUpdate: '2025-01-18T16:30:00'
+  },
+  {
+    id: 'STU-1002',
+    name: 'Maya Gurung',
+    email: 'maya@example.com',
+    phone: '+977 9801122334',
+    destination: 'Australia',
+    stage: 'Initial Consultation',
+    status: 'lead',
+    assignedTo: 'Jenish Neupane',
+    createdAt: '2025-01-10T11:10:00',
+    lastUpdate: '2025-01-19T11:45:00'
+  },
+  {
+    id: 'STU-1003',
+    name: 'Bikash Thapa',
+    email: 'bikash@example.com',
+    phone: '+977 9845678901',
+    destination: 'Australia',
+    stage: 'Offer Received',
+    status: 'active',
+    assignedTo: 'Sakura Ghimire',
+    createdAt: '2025-01-03T14:25:00',
+    lastUpdate: '2025-01-20T09:05:00'
+  },
+  {
+    id: 'STU-1004',
+    name: 'Suresh Rai',
+    email: 'suresh@example.com',
+    phone: '+977 9822334455',
+    destination: 'UK',
+    stage: 'Visa Application',
+    status: 'active',
+    assignedTo: 'Priya Thapa',
+    createdAt: '2025-01-06T09:40:00',
+    lastUpdate: '2025-01-19T17:00:00'
+  }
+];
 
 // Enhanced mock data with comprehensive admin features
 const getAdminDashboardData = () => ({
@@ -82,6 +134,13 @@ export default function AdminDashboard() {
   const [selectedView, setSelectedView] = useState('overview');
   const [selectedConsultant, setSelectedConsultant] = useState(null);
 
+  // students state
+  const [students, setStudents] = useState({ loading: true, list: [], error: '' });
+  const [studentQuery, setStudentQuery] = useState('');
+  const [studentStatus, setStudentStatus] = useState('all');
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
+
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
@@ -93,8 +152,49 @@ export default function AdminDashboard() {
       }
     };
 
+    const loadStudents = async () => {
+      try {
+        // Try real API first
+        const res = await api.get('/admin/students'); // expect { data: Student[] }
+        setStudents({ loading: false, list: res.data || [], error: '' });
+      } catch (err) {
+        console.warn('Falling back to mock students:', err?.message || err);
+        setStudents({ loading: false, list: fallbackStudents, error: '' });
+      }
+    };
+
     loadDashboardData();
+    loadStudents();
   }, []);
+
+  const filteredStudents = useMemo(() => {
+    let list = students.list;
+    if (studentQuery.trim()) {
+      const q = studentQuery.toLowerCase();
+      list = list.filter(
+        s =>
+          s.name.toLowerCase().includes(q) ||
+          String(s.id).toLowerCase().includes(q) ||
+          (s.email && s.email.toLowerCase().includes(q)) ||
+          (s.phone && s.phone.toLowerCase().includes(q)) ||
+          (s.destination && s.destination.toLowerCase().includes(q)) ||
+          (s.assignedTo && s.assignedTo.toLowerCase().includes(q))
+      );
+    }
+    if (studentStatus !== 'all') {
+      list = list.filter(s => (s.status || 'active') === studentStatus);
+    }
+    return list;
+  }, [students.list, studentQuery, studentStatus]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageSlice = filteredStudents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const viewAsConsultant = (consultant) => {
+    setSelectedConsultant(consultant);
+    console.log(`Viewing as consultant: ${consultant.name}`);
+  };
 
   if (data.loading) {
     return (
@@ -108,12 +208,6 @@ export default function AdminDashboard() {
       </div>
     );
   }
-
-  const viewAsConsultant = (consultant) => {
-    setSelectedConsultant(consultant);
-    // In a real app, this would switch the user's view context
-    console.log(`Viewing as consultant: ${consultant.name}`);
-  };
 
   return (
     <>
@@ -172,18 +266,10 @@ export default function AdminDashboard() {
           75% { transform: translate(-10px, 20px) scale(1.02) rotate(1deg); }
         }
 
-        .admin-dashboard > * {
-          position: relative;
-          z-index: 1;
-        }
+        .admin-dashboard > * { position: relative; z-index: 1; }
+        .dashboard-container { padding: 2rem; max-width: 1800px; margin: 0 auto; }
 
-        .dashboard-container {
-          padding: 2rem;
-          max-width: 1800px;
-          margin: 0 auto;
-        }
-
-        /* Header Section */
+        /* Header */
         .dashboard-header {
           background: var(--glass-bg);
           backdrop-filter: blur(20px);
@@ -193,861 +279,163 @@ export default function AdminDashboard() {
           border: 1px solid var(--glass-border);
           margin-bottom: 2rem;
         }
-
-        .header-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 2rem;
-        }
-
-        .header-content {
-          flex: 1;
-        }
-
+        .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+        .header-content { flex: 1; }
         .dashboard-title {
-          margin: 0 0 0.75rem 0;
-          font-size: 3rem;
-          font-weight: 800;
+          margin: 0 0 0.75rem 0; font-size: 3rem; font-weight: 800;
           background: linear-gradient(135deg, var(--primary-light), var(--secondary), var(--info));
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          letter-spacing: -0.03em;
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;
         }
-
-        .dashboard-subtitle {
-          margin: 0 0 1rem 0;
-          color: var(--text-secondary);
-          font-size: 1.2rem;
-          line-height: 1.6;
-        }
-
+        .dashboard-subtitle { margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 1.2rem; line-height: 1.6; }
         .branch-info {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 1rem;
-          background: var(--glass-bg-light);
-          backdrop-filter: blur(10px);
-          border-radius: 8px;
-          border: 1px solid var(--glass-border);
-          font-size: 0.875rem;
-          color: var(--text-muted);
+          display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem;
+          background: var(--glass-bg-light); backdrop-filter: blur(10px); border-radius: 8px; border: 1px solid var(--glass-border);
+          font-size: 0.875rem; color: var(--text-muted);
         }
 
-        /* Navigation Tabs */
+        /* Tabs */
         .view-navigation {
-          display: flex;
-          gap: 0.5rem;
-          background: var(--glass-bg-light);
-          backdrop-filter: blur(10px);
-          padding: 0.5rem;
-          border-radius: 12px;
-          border: 1px solid var(--glass-border);
+          display: flex; gap: 0.5rem; background: var(--glass-bg-light);
+          backdrop-filter: blur(10px); padding: 0.5rem; border-radius: 12px; border: 1px solid var(--glass-border);
+          flex-wrap: wrap;
         }
-
         .nav-tab {
-          padding: 0.75rem 1.5rem;
-          background: transparent;
-          border: none;
-          border-radius: 8px;
-          color: var(--text-secondary);
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
+          padding: 0.75rem 1.5rem; background: transparent; border: none; border-radius: 8px; color: var(--text-secondary);
+          font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 0.5rem;
         }
-
-        .nav-tab.active {
-          background: var(--primary);
-          color: white;
-          box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
-        }
-
-        .nav-tab:hover:not(.active) {
-          background: var(--glass-bg);
-          color: var(--text);
-        }
+        .nav-tab.active { background: var(--primary); color: white; box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4); }
+        .nav-tab:hover:not(.active) { background: var(--glass-bg); color: var(--text); }
 
         /* KPI Cards */
-        .kpi-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 1.5rem;
-          margin-bottom: 2rem;
-        }
-
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .kpi-card {
-          background: var(--glass-bg);
-          backdrop-filter: blur(20px);
-          padding: 2rem;
-          border-radius: 16px;
-          border: 1px solid var(--glass-border);
-          box-shadow: var(--shadow-card);
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .kpi-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 4px;
-          background: linear-gradient(90deg, var(--primary), var(--secondary));
-          border-radius: 16px 16px 0 0;
-        }
-
-        .kpi-card:hover {
-          transform: translateY(-4px);
-          box-shadow: var(--shadow-glow);
-        }
-
-        .kpi-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 1.5rem;
-        }
-
-        .kpi-icon {
-          width: 50px;
-          height: 50px;
-          border-radius: 12px;
-          background: linear-gradient(135deg, var(--primary), var(--secondary));
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
-        }
-
-        .kpi-trend {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-          padding: 0.5rem 0.75rem;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          font-weight: 600;
-        }
-
-        .kpi-trend.positive {
-          background: rgba(16, 185, 129, 0.15);
-          color: var(--success);
-        }
-
-        .kpi-trend.negative {
-          background: rgba(239, 68, 68, 0.15);
-          color: var(--danger);
-        }
-
-        .kpi-value {
-          font-size: 2.5rem;
-          font-weight: 800;
-          background: linear-gradient(135deg, var(--primary-light), var(--secondary));
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          margin: 0 0 0.5rem 0;
-        }
-
-        .kpi-label {
-          color: var(--text-secondary);
-          font-size: 1rem;
-          font-weight: 500;
-          margin: 0;
-        }
-
-        /* Main Content Grid */
-        .main-content {
-          display: grid;
-          grid-template-columns: 2fr 1fr;
-          gap: 2rem;
-          margin-bottom: 2rem;
-        }
-
-        .content-left {
-          display: flex;
-          flex-direction: column;
-          gap: 2rem;
-        }
-
-        .content-right {
-          display: flex;
-          flex-direction: column;
-          gap: 2rem;
-        }
-
-        /* Glass Cards */
-        .glass-card {
-          background: var(--glass-bg);
-          backdrop-filter: blur(20px);
-          padding: 2rem;
-          border-radius: 16px;
-          border: 1px solid var(--glass-border);
-          box-shadow: var(--shadow-card);
-          transition: all 0.3s ease;
-        }
-
-        .glass-card:hover {
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-glow);
-        }
-
-        .card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 2rem;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid var(--glass-border);
-        }
-
-        .card-title {
-          margin: 0;
-          font-size: 1.3rem;
-          font-weight: 700;
-          color: var(--text);
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .card-link {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: var(--primary-light);
-          text-decoration: none;
-          font-weight: 600;
-          font-size: 0.875rem;
-          transition: all 0.3s ease;
-        }
-
-        .card-link:hover {
-          color: var(--primary);
-        }
-
-        /* Pipeline Funnel */
-        .pipeline-funnel {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .pipeline-stage {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1rem;
-          background: var(--glass-bg-light);
-          backdrop-filter: blur(10px);
-          border-radius: 12px;
-          border: 1px solid var(--glass-border);
-          transition: all 0.3s ease;
-        }
-
-        .pipeline-stage:hover {
-          transform: translateX(4px);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .stage-indicator {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          flex-shrink: 0;
-        }
-
-        .stage-info {
-          flex: 1;
-        }
-
-        .stage-name {
-          font-weight: 600;
-          color: var(--text);
-          margin: 0 0 0.25rem 0;
-          font-size: 0.95rem;
-        }
-
-        .stage-count {
-          color: var(--text-secondary);
-          font-size: 0.8rem;
-          margin: 0;
-        }
-
-        .stage-bar {
-          flex: 2;
-          height: 8px;
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 4px;
-          overflow: hidden;
-        }
-
-        .stage-fill {
-          height: 100%;
-          border-radius: 4px;
-          transition: width 0.6s ease;
-        }
-
-        /* Revenue Chart */
-        .revenue-chart {
-          height: 300px;
-          display: flex;
-          align-items: end;
-          gap: 1rem;
-          padding: 2rem 1rem 1rem;
-          position: relative;
-        }
-
-        .chart-bar {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .bar-container {
-          position: relative;
-          width: 100%;
-          height: 200px;
-          display: flex;
-          align-items: end;
-          justify-content: center;
-        }
-
-        .bar-actual {
-          width: 60%;
-          background: linear-gradient(135deg, var(--primary), var(--secondary));
-          border-radius: 4px 4px 0 0;
-          box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
-          transition: all 0.3s ease;
-        }
-
-        .bar-target {
-          position: absolute;
-          top: 0;
-          width: 60%;
-          height: 2px;
-          background: var(--warning);
-          border-radius: 2px;
-        }
-
-        .bar-label {
-          color: var(--text-secondary);
-          font-size: 0.8rem;
-          font-weight: 600;
-        }
-
-        .bar-value {
-          color: var(--text);
-          font-size: 0.75rem;
-          text-align: center;
-          margin-top: 0.25rem;
-        }
-
-        /* Top Consultants */
-        .consultant-ranking {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .consultant-rank-item {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1rem;
-          background: var(--glass-bg-light);
-          backdrop-filter: blur(10px);
-          border-radius: 12px;
-          border: 1px solid var(--glass-border);
-          transition: all 0.3s ease;
-        }
-
-        .consultant-rank-item:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .rank-position {
-          width: 30px;
-          height: 30px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, var(--primary), var(--secondary));
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-weight: 700;
-          font-size: 0.8rem;
-        }
-
-        .consultant-avatar-small {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: var(--glass-bg);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 600;
-          font-size: 0.8rem;
-          border: 1px solid var(--glass-border);
-        }
-
-        .consultant-info {
-          flex: 1;
-        }
-
-        .consultant-name {
-          font-weight: 600;
-          color: var(--text);
-          margin: 0 0 0.25rem 0;
-          font-size: 0.9rem;
-        }
-
-        .consultant-stats {
-          color: var(--text-secondary);
-          font-size: 0.8rem;
-          margin: 0;
-        }
-
-        .consultant-revenue {
-          text-align: right;
-          color: var(--success);
-          font-weight: 700;
-          font-size: 0.9rem;
-        }
-
-        /* Destinations */
-        .destinations-list {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .destination-item {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1rem;
-          background: var(--glass-bg-light);
-          backdrop-filter: blur(10px);
-          border-radius: 12px;
-          border: 1px solid var(--glass-border);
-          transition: all 0.3s ease;
-        }
-
-        .destination-item:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .country-flag {
-          font-size: 1.5rem;
-        }
-
-        .destination-info {
-          flex: 1;
-        }
-
-        .country-name {
-          font-weight: 600;
-          color: var(--text);
-          margin: 0 0 0.25rem 0;
-        }
-
-        .student-count {
-          color: var(--text-secondary);
-          font-size: 0.8rem;
-          margin: 0;
-        }
-
-        .growth-indicator {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-          font-size: 0.8rem;
-          font-weight: 600;
-        }
-
-        .growth-indicator.positive {
-          color: var(--success);
-        }
-
-        .growth-indicator.negative {
-          color: var(--danger);
-        }
-
-        /* Activity Feed */
-        .activity-timeline {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .activity-item {
-          display: flex;
-          gap: 1rem;
-          padding: 1rem;
-          background: var(--glass-bg-light);
-          backdrop-filter: blur(10px);
-          border-radius: 12px;
-          border: 1px solid var(--glass-border);
-          transition: all 0.3s ease;
-        }
-
-        .activity-item:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .activity-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .activity-icon.application {
-          background: rgba(99, 102, 241, 0.2);
-          color: var(--primary);
-        }
-
-        .activity-icon.lead {
-          background: rgba(16, 185, 129, 0.2);
-          color: var(--success);
-        }
-
-        .activity-icon.offer {
-          background: rgba(245, 158, 11, 0.2);
-          color: var(--warning);
-        }
-
-        .activity-icon.payment {
-          background: rgba(6, 182, 212, 0.2);
-          color: var(--info);
-        }
-
-        .activity-icon.document {
-          background: rgba(139, 92, 246, 0.2);
-          color: var(--secondary);
-        }
-
-        .activity-content {
-          flex: 1;
-        }
-
-        .activity-message {
-          color: var(--text);
-          font-size: 0.9rem;
-          margin: 0 0 0.25rem 0;
-          line-height: 1.4;
-        }
-
-        .activity-time {
-          color: var(--text-muted);
-          font-size: 0.75rem;
-        }
-
-        /* Urgent Alerts */
-        .alerts-list {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .alert-item {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1rem;
-          border-radius: 12px;
-          border: 1px solid;
-          transition: all 0.3s ease;
-        }
-
-        .alert-item.high {
-          background: rgba(239, 68, 68, 0.1);
-          border-color: rgba(239, 68, 68, 0.3);
-        }
-
-        .alert-item.medium {
-          background: rgba(245, 158, 11, 0.1);
-          border-color: rgba(245, 158, 11, 0.3);
-        }
-
-        .alert-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .alert-item.high .alert-icon {
-          background: rgba(239, 68, 68, 0.2);
-          color: var(--danger);
-        }
-
-        .alert-item.medium .alert-icon {
-          background: rgba(245, 158, 11, 0.2);
-          color: var(--warning);
-        }
-
-        .alert-content {
-          flex: 1;
-        }
-
-        .alert-message {
-          color: var(--text);
-          font-weight: 600;
-          margin: 0;
-          font-size: 0.9rem;
-        }
-
-        .alert-count {
-          background: var(--danger);
-          color: white;
-          padding: 0.25rem 0.5rem;
-          border-radius: 12px;
-          font-size: 0.75rem;
-          font-weight: 700;
-        }
-
-        /* Team Management View */
-        .team-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 1.5rem;
-        }
-
-        .consultant-card {
-          background: var(--glass-bg);
-          backdrop-filter: blur(20px);
-          padding: 1.5rem;
-          border-radius: 16px;
-          border: 1px solid var(--glass-border);
-          box-shadow: var(--shadow-card);
-          transition: all 0.3s ease;
-        }
-
-        .consultant-card:hover {
-          transform: translateY(-4px);
-          box-shadow: var(--shadow-glow);
-        }
-
-        .consultant-header {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
-
-        .consultant-avatar-large {
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, var(--primary), var(--secondary));
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-weight: 700;
-          font-size: 1.2rem;
-        }
-
-        .consultant-details h3 {
-          margin: 0 0 0.25rem 0;
-          color: var(--text);
-          font-size: 1.1rem;
-          font-weight: 600;
-        }
-
-        .consultant-details p {
-          margin: 0;
-          color: var(--text-secondary);
-          font-size: 0.85rem;
-        }
-
-        .status-indicator {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          position: absolute;
-          top: -2px;
-          right: -2px;
-        }
-
-        .status-indicator.online {
-          background: var(--success);
-          box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
-        }
-
-        .status-indicator.busy {
-          background: var(--warning);
-          box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
-        }
-
-        .status-indicator.offline {
-          background: var(--text-muted);
-        }
-
-        .consultant-metrics {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
-
-        .metric {
-          text-align: center;
-          padding: 1rem;
-          background: var(--glass-bg-light);
-          border-radius: 8px;
-          border: 1px solid var(--glass-border);
-        }
-
-        .metric-value {
-          font-size: 1.5rem;
-          font-weight: 700;
-          color: var(--primary-light);
-          margin: 0 0 0.25rem 0;
-        }
-
-        .metric-label {
-          color: var(--text-secondary);
-          font-size: 0.8rem;
-          margin: 0;
-        }
-
-        .consultant-actions {
-          display: flex;
-          gap: 0.75rem;
-        }
-
-        .action-btn {
-          flex: 1;
-          padding: 0.75rem 1rem;
-          border: 1px solid var(--glass-border);
-          border-radius: 8px;
-          background: var(--glass-bg-light);
-          backdrop-filter: blur(10px);
-          color: var(--text);
-          font-weight: 600;
-          font-size: 0.8rem;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          text-decoration: none;
-          text-align: center;
-        }
-
-        .action-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .action-btn.primary {
-          background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-          border-color: var(--primary);
-          color: white;
-        }
-
-        .action-btn.primary:hover {
-          background: linear-gradient(135deg, var(--primary-light), var(--primary));
-        }
-
-        /* Loading States */
-        .loading-container {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: 60vh;
-          color: var(--text-secondary);
-        }
-
-        .loading-spinner {
-          position: relative;
-          width: 60px;
-          height: 60px;
-          margin-bottom: 2rem;
-        }
-
-        .spinner-ring {
-          position: absolute;
-          width: 60px;
-          height: 60px;
-          border: 3px solid transparent;
-          border-top: 3px solid var(--primary);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        .spinner-ring:nth-child(2) {
-          animation-delay: 0.1s;
-          border-top-color: var(--secondary);
-        }
-
-        .spinner-ring:nth-child(3) {
-          animation-delay: 0.2s;
-          border-top-color: var(--info);
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        /* Responsive Design */
-        @media (max-width: 1200px) {
-          .main-content {
-            grid-template-columns: 1fr;
-          }
-        }
-
+          background: var(--glass-bg); backdrop-filter: blur(20px); padding: 2rem; border-radius: 16px; border: 1px solid var(--glass-border);
+          box-shadow: var(--shadow-card); transition: all 0.3s ease; position: relative; overflow: hidden;
+        }
+        .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 16px 16px 0 0; }
+        .kpi-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-glow); }
+        .kpi-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+        .kpi-icon { width: 50px; height: 50px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3); }
+        .kpi-trend { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; }
+        .kpi-trend.positive { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .kpi-trend.negative { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .kpi-value { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--primary-light), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 0 0 0.5rem 0; }
+        .kpi-label { color: var(--text-secondary); font-size: 1rem; font-weight: 500; margin: 0; }
+
+        /* Layout */
+        .main-content { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem; }
+        .content-left { display: flex; flex-direction: column; gap: 2rem; }
+        .content-right { display: flex; flex-direction: column; gap: 2rem; }
+
+        /* Card */
+        .glass-card { background: var(--glass-bg); backdrop-filter: blur(20px); padding: 2rem; border-radius: 16px; border: 1px solid var(--glass-border); box-shadow: var(--shadow-card); transition: all 0.3s ease; }
+        .glass-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-glow); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--glass-border); }
+        .card-title { margin: 0; font-size: 1.3rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 0.75rem; }
+        .card-link { display: flex; align-items: center; gap: 0.5rem; color: var(--primary-light); text-decoration: none; font-weight: 600; font-size: 0.875rem; transition: all 0.3s ease; }
+        .card-link:hover { color: var(--primary); }
+
+        /* Simple bar chart */
+        .revenue-chart { height: 300px; display: flex; align-items: end; gap: 1rem; padding: 2rem 1rem 1rem; position: relative; }
+        .chart-bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+        .bar-container { position: relative; width: 100%; height: 200px; display: flex; align-items: end; justify-content: center; }
+        .bar-actual { width: 60%; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 4px 4px 0 0; box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3); transition: all 0.3s ease; }
+        .bar-target { position: absolute; top: 0; width: 60%; height: 2px; background: var(--warning); border-radius: 2px; }
+        .bar-label { color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; }
+        .bar-value { color: var(--text); font-size: 0.75rem; text-align: center; margin-top: 0.25rem; }
+
+        /* Funnel */
+        .pipeline-funnel { display: flex; flex-direction: column; gap: 1rem; }
+        .pipeline-stage { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--glass-bg-light); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid var(--glass-border); transition: all 0.3s ease; }
+        .pipeline-stage:hover { transform: translateX(4px); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); }
+        .stage-indicator { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .stage-info { flex: 1; }
+        .stage-name { font-weight: 600; color: var(--text); margin: 0 0 0.25rem 0; font-size: 0.95rem; }
+        .stage-count { color: var(--text-secondary); font-size: 0.8rem; margin: 0; }
+        .stage-bar { flex: 2; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; }
+        .stage-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+
+        /* Lists */
+        .consultant-ranking, .destinations-list, .activity-timeline, .alerts-list { display: flex; flex-direction: column; gap: 1rem; }
+        .consultant-rank-item, .destination-item, .activity-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--glass-bg-light); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid var(--glass-border); transition: all 0.3s ease; }
+        .consultant-rank-item:hover, .destination-item:hover, .activity-item:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); }
+        .rank-position { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.8rem; }
+        .consultant-avatar-small { width: 40px; height: 40px; border-radius: 50%; background: var(--glass-bg); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem; border: 1px solid var(--glass-border); }
+        .consultant-info { flex: 1; }
+        .consultant-name { font-weight: 600; color: var(--text); margin: 0 0 0.25rem 0; font-size: 0.9rem; }
+        .consultant-stats { color: var(--text-secondary); font-size: 0.8rem; margin: 0; }
+        .consultant-revenue { text-align: right; color: var(--success); font-weight: 700; font-size: 0.9rem; }
+        .country-flag { font-size: 1.5rem; }
+        .destination-info { flex: 1; }
+        .country-name { font-weight: 600; color: var(--text); margin: 0 0 0.25rem 0; }
+        .student-count { color: var(--text-secondary); font-size: 0.8rem; margin: 0; }
+        .growth-indicator { display: flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; font-weight: 600; }
+        .growth-indicator.positive { color: var(--success); }
+        .growth-indicator.negative { color: var(--danger); }
+
+        /* Activity */
+        .activity-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .activity-icon.application { background: rgba(99, 102, 241, 0.2); color: var(--primary); }
+        .activity-icon.lead { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .activity-icon.offer { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .activity-icon.payment { background: rgba(6, 182, 212, 0.2); color: var(--info); }
+        .activity-icon.document { background: rgba(139, 92, 246, 0.2); color: var(--secondary); }
+        .activity-content { flex: 1; }
+        .activity-message { color: var(--text); font-size: 0.9rem; margin: 0 0 0.25rem 0; line-height: 1.4; }
+        .activity-time { color: var(--text-muted); font-size: 0.75rem; }
+
+        /* Alerts */
+        .alert-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 12px; border: 1px solid; transition: all 0.3s ease; }
+        .alert-item.high { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); }
+        .alert-item.medium { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); }
+        .alert-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .alert-item.high .alert-icon { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .alert-item.medium .alert-icon { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .alert-content { flex: 1; }
+        .alert-message { color: var(--text); font-weight: 600; margin: 0; font-size: 0.9rem; }
+        .alert-count { background: var(--danger); color: white; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
+
+        /* Student table */
+        .student-toolbar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .student-input, .student-select {
+          padding: 0.6rem 0.8rem; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--glass-bg-light);
+          color: var(--text); outline: none;
+        }
+        .student-input::placeholder { color: var(--text-secondary); }
+        .student-table { width: 100%; border-collapse: collapse; }
+        .student-table th, .student-table td { padding: 0.9rem; border-bottom: 1px solid var(--glass-border); text-align: left; font-size: 0.92rem; }
+        .student-table th { color: var(--text-secondary); font-weight: 700; letter-spacing: 0.02em; }
+        .badge { padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+        .badge.active { background: rgba(16,185,129,0.15); color: var(--success); }
+        .badge.lead { background: rgba(99,102,241,0.15); color: var(--primary-light); }
+        .badge.inactive { background: rgba(148,163,184,0.15); color: var(--text-secondary); }
+        .table-actions { display: flex; gap: 0.5rem; }
+        .mini-btn {
+          padding: 0.45rem 0.6rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-bg-light);
+          color: var(--text); font-weight: 600; font-size: 0.78rem; cursor: pointer; transition: all 0.2s ease; text-decoration: none;
+        }
+        .mini-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+        .pagination { display: flex; gap: 0.5rem; justify-content: flex-end; padding-top: 0.8rem; }
+        .page-btn { padding: 0.45rem 0.75rem; border: 1px solid var(--glass-border); background: var(--glass-bg-light); color: var(--text); border-radius: 8px; cursor: pointer; }
+        .page-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+        /* Loading */
+        .loading-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; color: var(--text-secondary); }
+        .loading-spinner { position: relative; width: 60px; height: 60px; margin-bottom: 2rem; }
+        .spinner-ring { position: absolute; width: 60px; height: 60px; border: 3px solid transparent; border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        .spinner-ring:nth-child(2){ animation-delay: 0.1s; border-top-color: var(--secondary); }
+        .spinner-ring:nth-child(3){ animation-delay: 0.2s; border-top-color: var(--info); }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Responsive */
+        @media (max-width: 1200px) { .main-content { grid-template-columns: 1fr; } }
         @media (max-width: 768px) {
-          .dashboard-container {
-            padding: 1rem;
-          }
-
-          .dashboard-header {
-            padding: 1.5rem;
-          }
-
-          .header-top {
-            flex-direction: column;
-            gap: 1rem;
-          }
-
-          .dashboard-title {
-            font-size: 2rem;
-          }
-
-          .kpi-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-
-          .team-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .view-navigation {
-            flex-wrap: wrap;
-          }
+          .dashboard-container { padding: 1rem; }
+          .dashboard-header { padding: 1.5rem; }
+          .header-top { flex-direction: column; gap: 1rem; }
+          .dashboard-title { font-size: 2rem; }
+          .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+          .view-navigation { flex-wrap: wrap; }
         }
       `}</style>
 
@@ -1063,59 +451,42 @@ export default function AdminDashboard() {
                 </p>
                 <div className="branch-info">
                   <Icon name="building-office" size={16} />
-                  <span>{branch} Branch • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                  <span>
+                    {branch} Branch • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  </span>
                 </div>
               </div>
-             
             </div>
 
             {/* Navigation */}
             <div className="view-navigation">
-              <button 
-                className={`nav-tab ${selectedView === 'overview' ? 'active' : ''}`}
-                onClick={() => setSelectedView('overview')}
-              >
-                <Icon name="chart-bar" size={16} />
-                Business Performance
+              <button className={`nav-tab ${selectedView === 'overview' ? 'active' : ''}`} onClick={() => setSelectedView('overview')}>
+                <Icon name="chart-bar" size={16} /> Business Performance
               </button>
-              <button 
-                className={`nav-tab ${selectedView === 'team' ? 'active' : ''}`}
-                onClick={() => setSelectedView('team')}
-              >
-                <Icon name="users" size={16} />
-                Team Management
+              <button className={`nav-tab ${selectedView === 'team' ? 'active' : ''}`} onClick={() => setSelectedView('team')}>
+                <Icon name="users" size={16} /> Team Management
               </button>
-              <button 
-                className={`nav-tab ${selectedView === 'operations' ? 'active' : ''}`}
-                onClick={() => setSelectedView('operations')}
-              >
-                <Icon name="cog" size={16} />
-                Operations
+              <button className={`nav-tab ${selectedView === 'students' ? 'active' : ''}`} onClick={() => setSelectedView('students')}>
+                <Icon name="graduation-cap" size={16} /> Students
               </button>
-              <button 
-                className={`nav-tab ${selectedView === 'system' ? 'active' : ''}`}
-                onClick={() => setSelectedView('system')}
-              >
-                <Icon name="server" size={16} />
-                System
+              <button className={`nav-tab ${selectedView === 'operations' ? 'active' : ''}`} onClick={() => setSelectedView('operations')}>
+                <Icon name="cog" size={16} /> Operations
+              </button>
+              <button className={`nav-tab ${selectedView === 'system' ? 'active' : ''}`} onClick={() => setSelectedView('system')}>
+                <Icon name="server" size={16} /> System
               </button>
             </div>
           </div>
 
-          {/* Business Performance View */}
+          {/* ---------------- OVERVIEW ---------------- */}
           {selectedView === 'overview' && (
             <>
               {/* KPIs */}
               <div className="kpi-grid">
                 <div className="kpi-card">
                   <div className="kpi-header">
-                    <div className="kpi-icon">
-                      <Icon name="currency-dollar" size={24} />
-                    </div>
-                    <div className="kpi-trend positive">
-                      <Icon name="trending-up" size={12} />
-                      +{data.kpis?.revenueGrowth}%
-                    </div>
+                    <div className="kpi-icon"><Icon name="currency-dollar" size={24} /></div>
+                    <div className="kpi-trend positive"><Icon name="trending-up" size={12} />+{data.kpis?.revenueGrowth}%</div>
                   </div>
                   <div className="kpi-value">{formatCurrency(data.kpis?.monthlyRevenue)}</div>
                   <p className="kpi-label">Monthly Revenue</p>
@@ -1123,13 +494,8 @@ export default function AdminDashboard() {
 
                 <div className="kpi-card">
                   <div className="kpi-header">
-                    <div className="kpi-icon">
-                      <Icon name="user-plus" size={24} />
-                    </div>
-                    <div className="kpi-trend positive">
-                      <Icon name="trending-up" size={12} />
-                      +{data.kpis?.newStudentsGrowth}%
-                    </div>
+                    <div className="kpi-icon"><Icon name="user-plus" size={24} /></div>
+                    <div className="kpi-trend positive"><Icon name="trending-up" size={12} />+{data.kpis?.newStudentsGrowth}%</div>
                   </div>
                   <div className="kpi-value">{data.kpis?.newStudents}</div>
                   <p className="kpi-label">New Students This Month</p>
@@ -1137,13 +503,8 @@ export default function AdminDashboard() {
 
                 <div className="kpi-card">
                   <div className="kpi-header">
-                    <div className="kpi-icon">
-                      <Icon name="chart-pie" size={24} />
-                    </div>
-                    <div className="kpi-trend positive">
-                      <Icon name="trending-up" size={12} />
-                      +{data.kpis?.conversionGrowth}%
-                    </div>
+                    <div className="kpi-icon"><Icon name="chart-pie" size={24} /></div>
+                    <div className="kpi-trend positive"><Icon name="trending-up" size={12} />+{data.kpis?.conversionGrowth}%</div>
                   </div>
                   <div className="kpi-value">{data.kpis?.conversionRate}%</div>
                   <p className="kpi-label">Conversion Rate</p>
@@ -1151,13 +512,8 @@ export default function AdminDashboard() {
 
                 <div className="kpi-card">
                   <div className="kpi-header">
-                    <div className="kpi-icon">
-                      <Icon name="users" size={24} />
-                    </div>
-                    <div className="kpi-trend positive">
-                      <Icon name="trending-up" size={12} />
-                      +{data.kpis?.activeGrowth}%
-                    </div>
+                    <div className="kpi-icon"><Icon name="users" size={24} /></div>
+                    <div className="kpi-trend positive"><Icon name="trending-up" size={12} />+{data.kpis?.activeGrowth}%</div>
                   </div>
                   <div className="kpi-value">{data.kpis?.activeStudents}</div>
                   <p className="kpi-label">Total Active Students</p>
@@ -1170,23 +526,14 @@ export default function AdminDashboard() {
                   {/* Revenue Trend */}
                   <div className="glass-card">
                     <div className="card-header">
-                      <h3 className="card-title">
-                        <Icon name="chart-line" size={20} />
-                        Revenue Trend (6 Months)
-                      </h3>
+                      <h3 className="card-title"><Icon name="chart-line" size={20} /> Revenue Trend (6 Months)</h3>
                     </div>
                     <div className="revenue-chart">
                       {data.revenueChart?.map((item, index) => (
                         <div key={index} className="chart-bar">
                           <div className="bar-container">
-                            <div 
-                              className="bar-actual"
-                              style={{ height: `${(item.amount / 3000000) * 100}%` }}
-                            />
-                            <div 
-                              className="bar-target"
-                              style={{ bottom: `${(item.target / 3000000) * 100}%` }}
-                            />
+                            <div className="bar-actual" style={{ height: `${(item.amount / 3000000) * 100}%` }} />
+                            <div className="bar-target" style={{ bottom: `${(item.target / 3000000) * 100}%` }} />
                           </div>
                           <div className="bar-label">{item.month}</div>
                           <div className="bar-value">{formatCurrency(item.amount)}</div>
@@ -1198,30 +545,18 @@ export default function AdminDashboard() {
                   {/* Student Pipeline */}
                   <div className="glass-card">
                     <div className="card-header">
-                      <h3 className="card-title">
-                        <Icon name="funnel" size={20} />
-                        Student Pipeline Funnel
-                      </h3>
+                      <h3 className="card-title"><Icon name="funnel" size={20} /> Student Pipeline Funnel</h3>
                     </div>
                     <div className="pipeline-funnel">
                       {data.studentPipeline?.map((stage, index) => (
                         <div key={index} className="pipeline-stage">
-                          <div 
-                            className="stage-indicator"
-                            style={{ backgroundColor: stage.color }}
-                          />
+                          <div className="stage-indicator" style={{ backgroundColor: stage.color }} />
                           <div className="stage-info">
                             <h4 className="stage-name">{stage.stage}</h4>
                             <p className="stage-count">{stage.count} students ({stage.percentage}%)</p>
                           </div>
                           <div className="stage-bar">
-                            <div 
-                              className="stage-fill"
-                              style={{ 
-                                width: `${stage.percentage}%`,
-                                backgroundColor: stage.color 
-                              }}
-                            />
+                            <div className="stage-fill" style={{ width: `${stage.percentage}%`, backgroundColor: stage.color }} />
                           </div>
                         </div>
                       ))}
@@ -1233,13 +568,8 @@ export default function AdminDashboard() {
                   {/* Top Consultants */}
                   <div className="glass-card">
                     <div className="card-header">
-                      <h3 className="card-title">
-                        <Icon name="trophy" size={20} />
-                        Top Performing Consultants
-                      </h3>
-                      <Link to="/consultants" className="card-link">
-                        View All <Icon name="arrow-right" size={14} />
-                      </Link>
+                      <h3 className="card-title"><Icon name="trophy" size={20} /> Top Performing Consultants</h3>
+                      <Link to="/consultants" className="card-link">View All <Icon name="arrow-right" size={14} /></Link>
                     </div>
                     <div className="consultant-ranking">
                       {data.topConsultants?.slice(0, 5).map((consultant, index) => (
@@ -1256,13 +586,10 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Student Destinations */}
+                  {/* Destinations */}
                   <div className="glass-card">
                     <div className="card-header">
-                      <h3 className="card-title">
-                        <Icon name="globe" size={20} />
-                        Popular Destinations
-                      </h3>
+                      <h3 className="card-title"><Icon name="globe" size={20} /> Popular Destinations</h3>
                     </div>
                     <div className="destinations-list">
                       {data.destinations?.map((dest, index) => (
@@ -1283,24 +610,26 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Activity and Alerts */}
+              {/* Activity & Alerts */}
               <div className="main-content">
                 <div className="content-left">
                   <div className="glass-card">
                     <div className="card-header">
-                      <h3 className="card-title">
-                        <Icon name="activity" size={20} />
-                        Global Activity Feed
-                      </h3>
+                      <h3 className="card-title"><Icon name="activity" size={20} /> Global Activity Feed</h3>
                     </div>
                     <div className="activity-timeline">
                       {data.activityFeed?.map((activity) => (
                         <div key={activity.id} className="activity-item">
                           <div className={`activity-icon ${activity.type}`}>
-                            <Icon name={activity.type === 'application' ? 'document-text' : 
-                                        activity.type === 'lead' ? 'user-plus' :
-                                        activity.type === 'offer' ? 'trophy' :
-                                        activity.type === 'payment' ? 'credit-card' : 'folder'} size={16} />
+                            <Icon
+                              name={
+                                activity.type === 'application' ? 'document-text' :
+                                activity.type === 'lead' ? 'user-plus' :
+                                activity.type === 'offer' ? 'trophy' :
+                                activity.type === 'payment' ? 'credit-card' : 'folder'
+                              }
+                              size={16}
+                            />
                           </div>
                           <div className="activity-content">
                             <p className="activity-message">{activity.action}</p>
@@ -1315,20 +644,13 @@ export default function AdminDashboard() {
                 <div className="content-right">
                   <div className="glass-card">
                     <div className="card-header">
-                      <h3 className="card-title">
-                        <Icon name="exclamation-triangle" size={20} />
-                        Urgent Alerts
-                      </h3>
+                      <h3 className="card-title"><Icon name="exclamation-triangle" size={20} /> Urgent Alerts</h3>
                     </div>
                     <div className="alerts-list">
                       {data.urgentAlerts?.map((alert) => (
                         <div key={alert.id} className={`alert-item ${alert.priority}`}>
-                          <div className="alert-icon">
-                            <Icon name="exclamation-triangle" size={16} />
-                          </div>
-                          <div className="alert-content">
-                            <p className="alert-message">{alert.message}</p>
-                          </div>
+                          <div className="alert-icon"><Icon name="exclamation-triangle" size={16} /></div>
+                          <div className="alert-content"><p className="alert-message">{alert.message}</p></div>
                           <div className="alert-count">{alert.count}</div>
                         </div>
                       ))}
@@ -1339,7 +661,7 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {/* Team Management View */}
+          {/* ---------------- TEAM ---------------- */}
           {selectedView === 'team' && (
             <div className="team-grid">
               {data.consultantList?.map((consultant) => (
@@ -1368,16 +690,11 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="consultant-actions">
-                    <button 
-                      className="action-btn primary"
-                      onClick={() => viewAsConsultant(consultant)}
-                    >
-                      <Icon name="eye" size={14} />
-                      View As
+                    <button className="action-btn primary" onClick={() => viewAsConsultant(consultant)}>
+                      <Icon name="eye" size={14} /> View As
                     </button>
                     <Link to={`/consultants/${consultant.id}`} className="action-btn">
-                      <Icon name="cog" size={14} />
-                      Manage
+                      <Icon name="cog" size={14} /> Manage
                     </Link>
                   </div>
                 </div>
@@ -1385,23 +702,125 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Other views would go here */}
+          {/* ---------------- STUDENTS ---------------- */}
+          {selectedView === 'students' && (
+            <div className="glass-card">
+              <div className="card-header" style={{ borderBottom: 'none', marginBottom: '1rem' }}>
+                <h3 className="card-title"><Icon name="graduation-cap" size={20} /> Student Management</h3>
+                <div className="student-toolbar">
+                  <input
+                    className="student-input"
+                    placeholder="Search by name, ID, email, phone, destination…"
+                    value={studentQuery}
+                    onChange={(e) => { setStudentQuery(e.target.value); setPage(1); }}
+                  />
+                  <select
+                    className="student-select"
+                    value={studentStatus}
+                    onChange={(e) => { setStudentStatus(e.target.value); setPage(1); }}
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="lead">Lead</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <Link to="/students/new" className="mini-btn" style={{ borderColor: 'var(--primary)', color: 'white', background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))' }}>
+                    <Icon name="plus" size={14} /> Add Student
+                  </Link>
+                </div>
+              </div>
+
+              {students.loading ? (
+                <div className="loading-container">
+                  <div className="loading-spinner">
+                    <div className="spinner-ring"></div>
+                    <div className="spinner-ring"></div>
+                    <div className="spinner-ring"></div>
+                  </div>
+                  <p>Loading students…</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="student-table">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Name</th>
+                          <th>Destination</th>
+                          <th>Stage</th>
+                          <th>Status</th>
+                          <th>Assigned To</th>
+                          <th>Created</th>
+                          <th>Last Update</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageSlice.map((s) => (
+                          <tr key={s.id}>
+                            <td>{s.id}</td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 700 }}>{s.name}</span>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{s.email} • {s.phone}</span>
+                              </div>
+                            </td>
+                            <td>{s.destination || '-'}</td>
+                            <td>{s.stage || '-'}</td>
+                            <td>
+                              <span className={`badge ${s.status || 'active'}`}>{(s.status || 'active').toUpperCase()}</span>
+                            </td>
+                            <td>{s.assignedTo || '-'}</td>
+                            <td>{s.createdAt ? formatDate(s.createdAt) : '-'}</td>
+                            <td>{s.lastUpdate ? `${formatDate(s.lastUpdate)} ${formatTime(s.lastUpdate)}` : '-'}</td>
+                            <td className="table-actions">
+                              <Link to={`/students/${s.id}`} className="mini-btn"><Icon name="eye" size={14} /> View</Link>
+                              <Link to={`/students/${s.id}/edit`} className="mini-btn"><Icon name="pencil" size={14} /> Edit</Link>
+                              <button className="mini-btn"><Icon name="trash" size={14} /> Delete</button>
+                            </td>
+                          </tr>
+                        ))}
+                        {pageSlice.length === 0 && (
+                          <tr>
+                            <td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '1rem' }}>
+                              No students match your filters.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="pagination">
+                    <button className="page-btn" disabled={currentPage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+                      ← Prev
+                    </button>
+                    <span style={{ alignSelf: 'center', color: 'var(--text-secondary)' }}>
+                      Page {currentPage} of {pageCount}
+                    </span>
+                    <button className="page-btn" disabled={currentPage >= pageCount} onClick={() => setPage(p => Math.min(pageCount, p + 1))}>
+                      Next →
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ---------------- OPERATIONS ---------------- */}
           {selectedView === 'operations' && (
             <div className="glass-card">
-              <h3 className="card-title">
-                <Icon name="cog" size={20} />
-                Operational Oversight
-              </h3>
+              <h3 className="card-title"><Icon name="cog" size={20} /> Operational Oversight</h3>
               <p style={{ color: 'var(--text-secondary)' }}>Coming soon - Advanced operational management features</p>
             </div>
           )}
 
+          {/* ---------------- SYSTEM ---------------- */}
           {selectedView === 'system' && (
             <div className="glass-card">
-              <h3 className="card-title">
-                <Icon name="server" size={20} />
-                System & Content Management
-              </h3>
+              <h3 className="card-title"><Icon name="server" size={20} /> System & Content Management</h3>
               <p style={{ color: 'var(--text-secondary)' }}>Coming soon - System configuration and content management</p>
             </div>
           )}
